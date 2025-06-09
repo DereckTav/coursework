@@ -1,0 +1,102 @@
+---
+title: "combining and reshaping exercises"
+---
+
+```{r setup, include = FALSE}
+library(tidyverse)
+library(ggplot2)
+library(knitr)
+magnet <- read.csv("week2/magnets.csv")
+ex2 <- read.csv("week2/ex2.csv")
+pop2 <- read.csv("week2/pop2.csv")
+theme_set(theme_bw())
+```
+
+```{r magnet_summary}
+magnet |>
+    View()
+```
+
+```{r exercise_9_1}
+X.change.bar <- magnet |>
+    select(change) |>
+    summarize(mean = mean(change)) |>
+    pull(mean) |>
+    View()
+```
+
+```{r exercise_9_1}
+X.score1.bar <- magnet |>
+    select(score1) |>
+    summarize(mean = mean(score1)) |>
+    pull(mean) |>
+    View()
+
+X.score2.bar <- magnet |>
+    select(score2) |>
+    summarize(mean = mean(score2)) |>
+    pull(mean)
+
+diff <- (X.score1.bar - X.score2.bar)
+diff |> View()
+```
+
+```{r exercise_9_1_3}
+x.mean.change.active <- magnet |>
+    select(change, active) |>
+    group_by(active) |>
+    summarize(mean = mean(change)) |>
+    View()
+```
+
+```{r exercise_9_1_5}
+magnet |>
+    select(change, active) |>
+    group_by(active) |>
+    ggplot(aes(x = active, y = change)) +
+    geom_boxplot()
+```
+
+
+```{r 10_1}
+n <- 100
+mu <- 3
+std <- sqrt(2)
+a <- 0.5
+b <- 5.5
+
+X.bar <- rep(0, 10^5)
+X.med <- rep(0, 10^5)
+
+for (i in 1:10^5) {
+    X <- runif(n, a, b)
+    X.bar[i] <- mean(X)
+    X.med[i] <- median(X)
+}
+
+mean(X.bar)
+mean(X.med)
+
+var(X.bar)
+var(X.med)
+```
+
+
+```{r 10_1_2_1}
+mean(ex2$group == "HIGH")
+```
+
+```{r 10_1_2_2}
+mean(pop2$group == "HIGH")
+```
+
+```{r 10_1_2_3}
+P.hat <- rep(0, 10^5)
+for (i in 1:10^5) {
+    x <- sample(pop2$group, 150)
+    P.hat[i] <- mean(x == "HIGH")
+}
+
+
+mean(P.hat)
+```
