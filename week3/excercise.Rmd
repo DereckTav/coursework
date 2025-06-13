@@ -1,0 +1,9 @@
+---
+title: labs
+---
+
+
+```{r setup}
+library(tidyverse)
+library(ISLR2)
+```

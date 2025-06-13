@@ -1,0 +1,25 @@
+---
+title: "body.data.txt:
+date: '`r Sys.time()'
+----
+
+```{r setup, include=FALSE}
+library(scales)
+library(tidyverse)
+
+theme_set(theme_bw())
+```
+
+
+```{r load_data} 
+data <- read.table("week3/body.dat.txt", header = FALSE)
+data_WxH <- data |> select(num_range("V", 23:24))
+```
+
+```{r plot} 
+data_WxH |> ggplot(aes(x = V24, y = V23)) +
+    geom_point() +
+    xlab("Height") +
+    ylab("Weight")
+```
+

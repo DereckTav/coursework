@@ -22,8 +22,9 @@ theme_set(theme_bw())
 
 Read data from the `ratings.csv` file
 ```{r load-data}
-ratings <- read_csv('ratings.csv',
-                    col_names = c('user_id','movie_id','rating','timestamp'))
+ratings <- read_csv("week3/ratings.csv",
+  col_names = c("user_id", "movie_id", "rating", "timestamp")
+)
 ```
 
 Loaded `r format(object.size(ratings), units="Mb")` of ratings data, containing `r format(nrow(ratings), big.mark = ",")` ratings. Here's a preview:
@@ -35,6 +36,8 @@ head(ratings) %>% kable()
 
 ```{r dist-ratings}
 # plot the distribution of rating values https://speakerdeck.com/jhofman/modeling-social-data-lecture-2-introduction-to-counting?slide=26
+ratings |> ggplot(aes(x = rating)) +
+  geom_bar()
 ```
 
 ## Per-movie stats
@@ -42,11 +45,19 @@ head(ratings) %>% kable()
 ```{r aggregate-by-movie}
 # aggregate ratings by movie, computing mean rating and number of ratings
 # hint: use the n() function for easy counting within a group
+
+ratings_popularity <- ratings |>
+  group_by(movie_id) |>
+  summarize(popularity = n(), mean_rating = mean(rating))
 ```
 
 ```{r dist-movie-popularity}
 # plot distribution of movie popularity (= number of ratings the movie received)
 # hint: try scale_x_log10() for a logarithmic x axis
+
+ggplot(ratings_popularity, aes(x = popularity)) +
+  geom_histogram(bin = 30) +
+  scale_x_log10()
 ```
 
 ```{r dist-mean-ratings-by-movie}

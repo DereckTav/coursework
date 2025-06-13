@@ -1,0 +1,18 @@
+---
+title: "labs"
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(modelr)
+library(ISLR2)
+```
+
+# lab 3.6.3
+
+```{r}
+model <- lm(medv ~ ., Boston)
+summary(model)
+
+model1 <- update(model, medv ~ . - age)
+```
