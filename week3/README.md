@@ -53,9 +53,9 @@ This week starts with a discussion of regression into machine learning and then 
 * Continue working on the previous regression and generalization assignments
 * Then move on to reproducing results from "The Anatomy of the Long Tail"
 
+<!--
 
-
-# Day 5
+# Day 4
 
 ## N-gram data and "Culturonomics"
 
@@ -63,9 +63,7 @@ This week starts with a discussion of regression into machine learning and then 
 * Consider the last bit of this exercise on creating a Makefile "extra credit", here are some references for using GNU Make / Makefiles:
   * [Why Use Make?](https://bost.ocks.org/mike/make/) by Mike Bostock
   * [GNU Make for Reproducible Data Analysis](http://zmjones.com/make/) by Zach Jones
-<!-- only the main plot (plot A), inset for just extra practice (plot A - halflife v. year -) --->
 
-<!--
 
 # Day 5
 
