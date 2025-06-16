@@ -1,0 +1,287 @@
+---
+title: "citibike regression"
+date: '`r Sys.time()`'
+output:
+    html_document:
+        # code_folding: hide
+        number_sections: yes
+        toc: yes
+        toc_depth: 3
+---
+
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(modelr)
+library(lubridate)
+citibike_trips <- read.table("week4/trips_per_day.tsv", sep = "\t", header = TRUE)
+```
+
+```{r load-datasets}
+set.seed(42)
+
+num_days <- nrow(citibike_trips)
+fraction <- 0.9
+num_train <- floor(num_days * fraction)
+
+ndx <- sample(1:num_days, num_train, replace = FALSE)
+
+trips_train <- citibike_trips[ndx, ]
+trips_test <- citibike_trips[-ndx, ]
+
+num_folds <- 5
+
+trips_train_folds <- trips_train %>%
+    mutate(fold = (row_number() %% num_folds) + 1)
+
+theme_set(theme_bw())
+```
+
+```{r min-base-model}
+set.seed(42)
+K <- 1:10
+
+avg_err <- c()
+stderr <- c()
+
+for (k in K) {
+    validate_err <- c()
+    for (f in 1:num_folds) {
+        model <- lm(num_trips ~ poly(tmin, k, raw = TRUE), filter(trips_train_folds, fold != f))
+        val_data <- filter(trips_train_folds, fold == f)
+        err <- sqrt(mean((predict(model, val_data) - val_data$num_trips)^2))
+        validate_err[f] <- err
+    }
+
+    avg_err[k] <- mean(validate_err)
+    stderr[k] <- sd(validate_err) / sqrt(num_folds)
+}
+```
+
+
+``` {r ploting-data}
+avg_validate_err <- avg_err
+se_validate_err <- stderr
+
+plot_data <- data.frame(K, avg_validate_err, se_validate_err)
+ggplot(plot_data, aes(x = K, y = avg_validate_err)) +
+    geom_pointrange(aes(
+        ymin = avg_validate_err - se_validate_err,
+        ymax = avg_validate_err + se_validate_err,
+        color = avg_validate_err == min(avg_validate_err)
+    )) +
+    geom_line(color = "red") +
+    scale_x_continuous(breaks = 1:12) +
+    theme(legend.position = "none") +
+    xlab("Polynomial Degree") +
+    ylab("RMSE on validation data")
+```
+
+```{r min-base-model-extra-features}
+set.seed(42)
+
+validate_err <- c()
+adjusted_R2 <- c()
+for (f in 1:num_folds) {
+    model <- lm(num_trips ~ poly(prcp, 2, raw = T) + poly(tmax, 8, raw = T) + sqrt(snwd) + poly(tmin, 4, raw = T), filter(trips_train_folds, fold != f))
+    val_data <- filter(trips_train_folds, fold == f)
+    err <- sqrt(mean((predict(model, val_data) - val_data$num_trips)^2))
+    validate_err[f] <- err
+    adjusted_R2[f] <- summary(model)$adj.r.squared
+}
+
+avg_adj_r <- mean(adjusted_R2)
+avg_val_err <- mean(validate_err)
+se_val <- sd(validate_err) / sqrt(num_folds)
+
+avg_adj_r
+avg_val_err
+se_val
+```
+
+# testing snwd and snow
+
+num_trips ~ prcp + snwd + tmax + tmin
+>     avg_adj_r
+[1] 0.7926796
+>     avg_val_err
+[1] 4767.835
+>     se_val
+[1] 169.8234
+
+num_trips ~ prcp + poly(snwd, 5, raw = T) + tmax + tmin
+> avg_adj_r
+[1] 0.7910862
+> avg_val_err
+[1] 4781.634
+> se_val
+[1] 166.2134
+
+num_trips ~ prcp + snwd + tmax * tmin
+> avg_adj_r
+[1] 0.7921217
+> avg_val_err
+[1] 4791.8
+> se_val
+[1] 174.7397
+
+
+num_trips ~ prcp + snow + tmax + tmin
+> avg_adj_r
+[1] 0.7828797
+> avg_val_err
+[1] 4915.607
+> se_val
+[1] 192.8162
+
+num_trips ~ prcp + snwd * poly(snow, 2, raw = T) + tmax + tmin
+> avg_adj_r
+[1] 0.7918337
+> avg_val_err
+[1] 6142.923
+> se_val
+[1] 922.3327
+
+verdict get rid of snow
+
+# setup season
+
+``` {r turn-ymd-to-season}
+trips_season <- citibike_trips |>
+    mutate(season = case_when(
+        month(ymd) >= 3 & month(ymd) <= 5 ~ 1,
+        month(ymd) >= 6 & month(ymd) <= 8 ~ 2,
+        month(ymd) >= 9 & month(ymd) <= 11 ~ 3,
+        month(ymd) == 2 ~ 4,
+        month(ymd) == 1 ~ 4,
+        month(ymd) == 12 ~ 4,
+    )) |>
+    mutate(season = as.factor(season))
+
+is.factor(trips_season$season)
+
+set.seed(42)
+
+num_days <- nrow(trips_season)
+fraction <- 0.9
+num_train <- floor(num_days * fraction)
+
+ndx <- sample(1:num_days, num_train, replace = FALSE)
+
+trips_train_season <- trips_season[ndx, ]
+trips_test_season <- trips_season[-ndx, ]
+
+num_folds <- 5
+
+trips_train_season_folds <- trips_train_season %>%
+    mutate(fold = (row_number() %% num_folds) + 1)
+```
+
+# validate season
+
+```{r min-base-model-season-extra-features}
+set.seed(42)
+
+validate_err <- c()
+adjusted_R2 <- c()
+for (f in 1:num_folds) {
+    model <- lm(num_trips ~ poly(prcp, 2, raw = T) + poly(tmax, 8, raw = T) + sqrt(snwd) + poly(tmin, 4, raw = T) + season, filter(trips_train_season_folds, fold != f))
+    val_data <- filter(trips_train_season_folds, fold == f)
+    err <- sqrt(mean((predict(model, val_data) - val_data$num_trips)^2))
+    validate_err[f] <- err
+    adjusted_R2[f] <- summary(model)$adj.r.squared
+}
+
+avg_adj_r <- mean(adjusted_R2)
+avg_val_err <- mean(validate_err)
+se_val <- sd(validate_err) / sqrt(num_folds)
+
+avg_adj_r
+avg_val_err
+se_val
+```
+
+# setup weekends
+
+``` {r weekday}
+trips_weekends_folds <- trips_train_folds |>
+    mutate(is_weekend = as.numeric(wday(ymd) == 1 | wday(ymd) == 7))
+
+trips_weekends_test <- trips_test |>
+    mutate(is_weekend = as.numeric(wday(ymd) == 1 | wday(ymd) == 7))
+```
+
+# validate weekends
+
+``` {r min-base-model-season-extra-features}
+set.seed(42)
+
+validate_err <- c()
+adjusted_R2 <- c()
+for (f in 1:num_folds) {
+    model <- lm(num_trips ~ poly(prcp, 2, raw = T) + poly(tmax, 8, raw = T) + sqrt(snwd) + poly(tmin, 4, raw = T) + is_weekend, filter(trips_weekends_folds, fold != f))
+    val_data <- filter(trips_weekends_folds, fold == f)
+    err <- sqrt(mean((predict(model, val_data) - val_data$num_trips)^2))
+    validate_err[f] <- err
+    adjusted_R2[f] <- summary(model)$adj.r.squared
+}
+
+avg_adj_r <- mean(adjusted_R2)
+avg_val_err <- mean(validate_err)
+se_val <- sd(validate_err) / sqrt(num_folds)
+
+avg_adj_r
+avg_val_err
+se_val
+```
+
+# setup both weekends and season
+
+``` {r weekday}
+trips_weekend_season_folds <- trips_train_season_folds |>
+    mutate(is_weekend = as.numeric(wday(ymd) == 1 | wday(ymd) == 7))
+
+trips_weekend_season_test <- trips_test_season |>
+    mutate(is_weekend = as.numeric(wday(ymd) == 1 | wday(ymd) == 7))
+```
+
+# validate weekends and season
+
+``` {r min-base-model-season-extra-features}
+set.seed(42)
+
+validate_err <- c()
+adjusted_R2 <- c()
+for (f in 1:num_folds) {
+    model <- lm(num_trips ~ poly(prcp, 2, raw = T) + poly(tmax, 8, raw = T) + poly(snwd, 5, raw = T) + poly(tmin, 4, raw = T) + is_weekend * season, filter(trips_weekend_season_folds, fold != f))
+    val_data <- filter(trips_weekend_season_folds, fold == f)
+    err <- sqrt(mean((predict(model, val_data) - val_data$num_trips)^2))
+    validate_err[f] <- err
+    adjusted_R2[f] <- summary(model)$adj.r.squared
+}
+
+avg_adj_r <- mean(adjusted_R2)
+avg_val_err <- mean(validate_err)
+se_val <- sd(validate_err) / sqrt(num_folds)
+
+avg_adj_r
+avg_val_err
+se_val
+```
+
+```{r plot-final-model-date-v-num-trips}
+model <- lm(num_trips ~ poly(prcp, 2, raw = T) + poly(tmax, 8, raw = T) + poly(snwd, 5, raw = T) + poly(tmin, 4, raw = T) + is_weekend * season, trips_weekend_season_folds)
+trips_predictions <- trips_weekend_season_folds |>
+    add_predictions(model) |>
+    mutate(pred = round(pred))
+
+trips_predictions |> ggplot(aes(x = date)) +
+    geom_line(aes(y = pred, color = "pred")) +
+    geom_point(aes(y = num_trips, color = "actual"))
+
+
+trips_predictions |> ggplot(aes(x = pred, y = num_trips)) +
+    geom_point() +
+    geom_abline(color = "red", linetype = "dashed")
+```
+
