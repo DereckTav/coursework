@@ -1,0 +1,47 @@
+---
+title: testing
+---
+
+
+```{r setup}
+library(tidyverse)
+library(modelr)
+trips_per_day <- read.table("week4/trips_per_day_2015.tsv", sep = "\t", header = T)
+weather <- read.csv("week4/weather_2015.csv", header = T)
+model <- readRDS("week4/model.Rdata")
+
+trips_per_day_season <- trips_per_day |>
+    mutate(season = case_when(
+        month(ymd) >= 3 & month(ymd) <= 5 ~ 1,
+        month(ymd) >= 6 & month(ymd) <= 8 ~ 2,
+        month(ymd) >= 9 & month(ymd) <= 11 ~ 3,
+        month(ymd) == 2 ~ 4,
+        month(ymd) == 1 ~ 4,
+        month(ymd) == 12 ~ 4,
+    )) |>
+    mutate(season = as.factor(season))
+
+trips_season_weekends <- trips_per_day_season |>
+    mutate(is_weekend = as.numeric(wday(ymd) == 1 | wday(ymd) == 7))
+
+trips_and_weather <- trips_season_weekends |> inner_join(weather, by = c("ymd" = "DATE"))
+
+trips_and_weather <- trips_and_weather |>
+    mutate(tmax = (tmax / 10), tmin = (tmin / 10))
+
+colnames(trips_and_weather) <- tolower(colnames(trips_and_weather))
+```
+
+```{r predictions}
+trips_predictions <- trips_and_weather |>
+    add_predictions(model) |>
+    mutate(pred = round(pred))
+```
+
+```{r rmse} 
+mse_base <- mean((mean(trips_predictions$num_trips) - trips_predictions$num_trips)^2)
+mse <- mean((trips_predictions$pred - trips_predictions$num_trips)^2)
+r2 <- (mse_base - mse) / mse_base
+r2
+sqrt(mse)
+```
